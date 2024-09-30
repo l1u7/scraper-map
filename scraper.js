@@ -3,7 +3,7 @@ const puppeteer = require('puppeteer');
 function pausa(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-   
+
 
 const localesEn = async (search) => {
     // Lanzar el navegador y abrir una nueva página
@@ -19,15 +19,15 @@ const localesEn = async (search) => {
     await page.keyboard.press('Enter');
 
     // Esperar a que los resultados de búsqueda se carguen
-    await page.waitForSelector('.Nv2PK.THOPZb.CpccDe');
+    await page.waitForSelector('.hfpxzc');
 
     await page.waitForSelector(".m6QErb.DxyBCb.kA9KIf.dS8AEf.XiKgde.ecceSd");
-    
+
     // Hacer scroll al segundo elemento
     await page.evaluate(async () => {
         const elementoAscroll = document.querySelectorAll('.m6QErb.DxyBCb.kA9KIf.dS8AEf.XiKgde.ecceSd')[1];
         let scroll = 0;
-        
+
         // Función que hace scroll asincrónicamente
         const asyncScroll = async () => {
             return new Promise(resolve => {
@@ -35,41 +35,88 @@ const localesEn = async (search) => {
                     scroll += 100;
                     elementoAscroll.scrollTo(0, scroll);
                     console.log(`scroll (0, ${scroll})`);
-    
+
                     resolve(scroll);
                 }, 500);  // Espera 500ms antes de hacer scroll
             });
         };
-    
+
         // Loop asincrónico para ejecutar el scroll
-        while (scroll < 100) {
+        while (scroll < 1100) {
             await asyncScroll();  // Espera a que el scroll termine antes de continuar
         }
-    
+
         console.log("Scroll finalizado.");
     });
-  
-    
+
+
     const results = await page.evaluate(() => {
-        const elements = document.querySelectorAll('.Nv2PK.THOPZb.CpccDe');
-        const links = Array.from(elements).map(el => el.querySelector('a').href);
+        const elements = document.querySelectorAll('.hfpxzc');
+        const links = Array.from(elements).map(el => el.href);
         return links;
     });
+
+
+    let datosTotales = [];
 
     var i = 0;
     const locacion = await browser.newPage();
     while (i < results.length) {
-        await locacion.goto(results[i], { waitUntil: 'networkidle0'});
+        await locacion.goto(results[i], { waitUntil: 'networkidle0' });
+
+        const nuevoDatos = await locacion.evaluate(() => {
+
+            let elements = document.querySelectorAll('.CsEnBe');
+            let nombre = document.querySelector('.DUwDvf.lfPIob').innerText;
+            let valoracion = document.querySelector('.F7nice > span > span')?.innerText || '0' ;
+            let direccion = ''
+            let href = ''
+            let phone = '';
+
+            for (let i = 0; i < elements.length; i++) {
+                let element = elements[i];
+                let itemName = element.dataset.itemId;
+
+                if (itemName === 'address') {
+                    direccion = element.querySelector('.fontBodyMedium')?.innerText || 'n/a';
+                } else if (itemName === 'authority') {
+                    href = element?.href || 'n/a';
+                } else if (itemName.startsWith('phone')) {
+                    phone = itemName?.split(':')[2] || 'n/a';
+                }
+            }
+
+            let filas = document.querySelectorAll('.eK4R0e.fontBodyMedium > tbody > tr')
+            let horarios = Array.from(filas).map(el => {
+                const columnas = el.querySelectorAll('td');
+                return {
+                    dia: columnas[0].innerText,
+                    hora: columnas[1].innerText
+                }
+            })
+
+            let datos = {
+                nombre,
+                valoracion,
+                direccion,
+                href,
+                phone,
+                horarios
+            }
         
-        console.log(results[i]);
-        await pausa(1000); 
+            return datos;
+        });
+
+        datosTotales.push(nuevoDatos); 
         i++;
-    }
-     
-    await browser.close();
+    } 
+
+    await browser.close(); 
+    return new Promise(resolve => {resolve(datosTotales)});
 };
+
+
 
 module.exports = {
     localesEn
 }
- 
